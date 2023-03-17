@@ -35,14 +35,14 @@
               py.pandas
               py.numpy
               py.matplotlib
+              py.pyqt5
+              py.ipython
             ];
 
             MPLBACKEND = "webagg";
-            # QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.qt5.qtbase.bin}/lib/qt-${pkgs.qt5.qtbase.version}/plugins";
+            QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.qt5.qtbase.bin}/lib/qt-${pkgs.qt5.qtbase.version}/plugins";
             postVenvCreation = ''
               unset SOURCE_DATE_EPOCH
-              pip install ipython
-              pip install rscad
             '';
 
             postShellHook = ''
