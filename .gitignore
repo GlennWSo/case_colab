@@ -1,0 +1,8 @@
+# nix
+.envrc
+
+# direnv
+.direnv
+
+# python
+.venv
