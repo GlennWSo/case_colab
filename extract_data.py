@@ -1,11 +1,12 @@
 # std
 from __future__ import annotations
 from abc import ABC, abstractmethod
-import os
-import sys
-from typing import List, Callable, Tuple, Dict, Sequence, Iterator
 from dataclasses import dataclass, field, asdict, astuple, fields
 from functools import total_ordering
+from time import time
+from typing import List, Callable, Tuple, Dict, Sequence, Iterator
+import os
+import sys
 
 # third
 import pandas as pd
@@ -46,10 +47,20 @@ def get_patient_data():
     patient_data = _mk_demo_data()
     diag_data = _mk_diag_data()
     patient_data.insert(0, "diag", diag_data)
+
     return patient_data
 
 
 PDATA = get_patient_data()
+rare_limit = 3
+
+
+def diag_count(data):
+    diag_names = np.unique(data["diag"])
+    return {name: (data["diag"] == name).sum() for name in diag_names}
+
+
+rare_diags = {key for key, val in diag_count(PDATA).items() if val <= rare_limit}
 
 
 # TODO
@@ -172,14 +183,40 @@ class Record:
             sound = mod(sound)
         return SoundFeatures.from_sound(sound, sr)
 
+    @staticmethod
+    def limit_patient(pid: int, recs: Sequence[Record], caps: Dict) -> bool:
+        """
+        deterimine if that maximum allowed recordings per patient has been reached
+        """
+        diag = PDATA["diag"][pid]
+        try:
+            limit = caps[diag]
+        except KeyError:
+            return False
+
+        return limit <= sum(1 for r in recs if r.pid == pid)
+
     @classmethod
-    def load_wavs(cls, folder: str = samples_path, n=-1) -> List[Record]:
+    def load_wavs(
+        cls,
+        folder: str = samples_path,
+        s=slice(0, -1),
+        caps={"COPD": 4},
+    ) -> List[Record]:
         wav_paths = [
             os.path.join(folder, file)
             for file in os.listdir(folder)
             if os.path.splitext(file)[1] == ".wav"
         ]
-        return [cls(path) for path in wav_paths][:n]
+        recs = [cls(path) for path in wav_paths][s]
+        if caps is None:
+            return recs
+        capped = []
+        for r in recs:
+            if cls.limit_patient(r.pid, capped, caps):
+                continue
+            capped.append(r)
+        return capped
 
 
 def shallow_dict(obj) -> Dict:
@@ -226,17 +263,13 @@ class Trunc(Aug):
         return x[s0:s1]
 
 
-trunc1 = Trunc(0, 0.9)
-trunc2 = Trunc(0.2)
-
-
 @dataclass
 class Pitch(Aug):
     factor: float
 
     @staticmethod
     def apply2(r: Record):
-        return bool(r.pid % 2)
+        return r.diag != "COPD"
 
     def modify(self, x):
         xp = np.arange(len(x))
@@ -244,8 +277,8 @@ class Pitch(Aug):
         return np.interp(xq, xp, x)
 
 
-speedup1 = Pitch(1.1)
-augs1 = [Noop, speedup1]
+speeds = [Pitch(f) for f in np.linspace(0.7, 1.5, 5) if f != 1.0]
+augs1 = [Noop] + speeds
 
 
 @dataclass
@@ -290,6 +323,16 @@ class DataPoint:
             return pickle.load(file)
 
 
+def s2hms(seconds: float, decimals: int = 1) -> str:
+    dt = seconds
+    hms = (
+        str(dt // 3600),
+        str((dt % 3600) // 60),
+        str(round(dt % 60, decimals)),
+    )
+    return ":".join(hms)
+
+
 class DataSet:
     def __init__(self, data: Sequence[DataPoint]):
         self.data: Sequence[DataPoint] = data
@@ -310,10 +353,23 @@ class DataSet:
 
     @classmethod
     def load_wavs(cls, augs: Augs, folder: str = samples_path, n=-1) -> DataSet:
-        records = Record.load_wavs(folder, n)
+        records = Record.load_wavs(folder, slice(0, n))
         data = []
+        n_recs = len(records)
         for r in records:
+            print(r)
+        print(f"extracting data from {n_recs} records...")
+        dts = []
+        for i, r in enumerate(records):
+            t0 = time()
             data.extend(DataPoint.mk_augmented_points(r, augs))
+            dt = time() - t0
+            dts.append(dt)
+            avg_dt = sum(dts) / len(dts)
+            eta = s2hms(avg_dt * (n_recs - i))
+            print(
+                f"augmented datapoints: {len(data)}, processed records: {i}/{n_recs}, eta: {eta}"
+            )
         return cls(data)
 
     def __repr__(self):
@@ -334,7 +390,6 @@ class DataSet:
     def load_pickle(cls, path) -> DataSet:
         with open(path, mode="rb") as file:
             instance = pickle.load(file)
-        assert isinstance(instance, cls)
         return instance
 
 
