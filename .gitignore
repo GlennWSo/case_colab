@@ -9,3 +9,4 @@ test.data
 
 # python
 .venv
+__pycache__
