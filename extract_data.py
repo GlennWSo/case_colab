@@ -2,7 +2,8 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import os
-from typing import List, Callable, Tuple, Dict, Sequence
+import sys
+from typing import List, Callable, Tuple, Dict, Sequence, Iterator
 from dataclasses import dataclass, field, asdict, astuple, fields
 from functools import total_ordering
 
@@ -48,12 +49,18 @@ def get_patient_data():
     return patient_data
 
 
-patient_data = get_patient_data()
+PDATA = get_patient_data()
 
-diag_types = set(patient_data["diag"])
-print("All diag types:", diag_types)
 
-print(patient_data.loc[101:106, :])
+# TODO
+def diag_pie():
+    """
+    make pie plot of diags
+    """
+    pass
+    # diag_types = set(patient_data["diag"])
+    # print("All diag types:", diag_types)
+    # print(patient_data.loc[101:106, :])
 
 
 @dataclass
@@ -64,18 +71,29 @@ class SoundFeatures:
     mel: np.ndarray
     tonnetz: np.ndarray
 
-    def __init__(self, sound: np.ndarray, sr: int):
-        self.sr = sr
+    @classmethod
+    def from_sound(cls, sound, sr):
         stft = np.abs(librosa.stft(sound))
-        self.mffcs = librosa.feature.mfcc(y=sound, sr=sr, n_mfcc=40)
-        self.chroma = librosa.feature.chroma_stft(S=stft, sr=sr)
-        self.mel = librosa.feature.melspectrogram(sound, sr=sr)
-        self.tonnetz = librosa.feature.melspectrogram(sound, sr=sr)
+        kwargs = {
+            "sr": sr,
+            "mffcs": librosa.feature.mfcc(y=sound, sr=sr, n_mfcc=40),
+            "chroma": librosa.feature.chroma_stft(S=stft, sr=sr),
+            "mel": librosa.feature.melspectrogram(sound, sr=sr),
+            "tonnetz": librosa.feature.melspectrogram(sound, sr=sr),
+        }
+        return cls(**kwargs)
 
-    def mean_concat(self):
-        all_features = ()
-        means = [np.mean(item, axis=1) for item in astuple(self)]
-        return np.concatenate(means)
+    @property
+    def data_dict(self):
+        return {key: val for key, val in asdict(self).items() if key != "sr"}
+
+    def mean(self) -> SoundFeatures:
+        data = asdict(self)
+        for key, val in data.items():
+            if key == "sr":
+                continue
+            data[key] = val.mean(axis=1)
+        return type(self)(**data)
 
     def shapes(self) -> Tuple:
         return {
@@ -91,11 +109,12 @@ class SoundFeatures:
         if not self.shapes() == o.shapes():
             return False
 
-        f1 = astuple(self)
-        f2 = astuple(o)
-        return all((f1 == f2).all() for f1, f2 in zip(f1, f2))
+        f1 = self.data_dict.values()
+        f2 = self.data_dict.values()
+        data_eq = all((f1 == f2).all() for f1, f2 in zip(f1, f2))
+        return data_eq and self.sr == o.sr
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return str(self.shapes())
 
 
@@ -143,13 +162,15 @@ class Record:
         base = os.path.basename(root)
         pid, self.rid, self.loc, self.mode, self.equip = base.split("_")
         self.pid = int(pid)
-        data = patient_data.loc[self.pid, :].to_dict()
+        data = PDATA.loc[self.pid, :].to_dict()
         for key, value in data.items():
             setattr(self, key, value)
 
-    def get_features(self, mod: SoundMod) -> SoundFeatures:
+    def get_features(self, mod: Optional[SoundMod] = None) -> SoundFeatures:
         sound, sr = librosa.load(self.file)
-        return SoundFeatures(mod(sound), sr)
+        if mod is not None:
+            sound = mod(sound)
+        return SoundFeatures.from_sound(sound, sr)
 
     @classmethod
     def load_wavs(cls, folder: str = samples_path, n=-1) -> List[Record]:
@@ -250,6 +271,10 @@ class DataPoint:
 
         return data
 
+    def reduce(self) -> DataPoint:
+        mfeatures = self.features.mean()
+        return type(self)(self.record, self.aug, mfeatures)
+
     def __repr__(self) -> str:
         lines = [f"{type(self).__name__}: {id(self)}"]
         lines.extend(f"{f.name}: {getattr(self, f.name)}" for f in fields(self))
@@ -267,10 +292,21 @@ class DataPoint:
 
 class DataSet:
     def __init__(self, data: Sequence[DataPoint]):
-        self.data = data
+        self.data: Sequence[DataPoint] = data
 
-    def __get__(self, s):
+    def __getitem__(self, s):
         return self.data[s]
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __iter__(self) -> Iterator[DataPoint]:
+        return iter(self.data)
+
+    def __eq__(self, o: DataSet) -> bool:
+        if len(self) != len(o):
+            return False
+        return all(p1 == p2 for p1, p2 in zip(self, o))
 
     @classmethod
     def load_wavs(cls, augs: Augs, folder: str = samples_path, n=-1) -> DataSet:
@@ -280,10 +316,17 @@ class DataSet:
             data.extend(DataPoint.mk_augmented_points(r, augs))
         return cls(data)
 
-    def __str__(self):
-        return "\n\n".join(str(item) for item in self.data)
+    def __repr__(self):
+        lines = [f"{type(self).__name__}: {id(self)}\n---"]
+        lines.extend(str(point) for point in self.data)
+        return "\n\n".join(lines)
+
+    def reduce(self) -> DataSet:
+        data = [point.reduce() for point in self.data]
+        return type(self)(data)
 
     def save_pickle(self, path: str):
+        print(f"saving data at {path}")
         with open(path, mode="wb") as file:
             pickle.dump(self, file)
 
@@ -295,11 +338,21 @@ class DataSet:
         return instance
 
 
-# data = DataPoint.mk_augmented_points(soundfile1, augs)
+def cli_make_dataset():
+    n = int(input("load n records\n"))
+    print(f"loading {n} records")
+    data = DataSet.load_wavs(augs1, n=n)
+    print(data)
+    print("---\n")
 
-data = DataSet.load_wavs(augs1, n=4)
-print(data)
+    path = input("save: [path/no]\n").strip()
+    low = path.lower()
+    if low == "no" or low == "n" or low == "":
+        print("skipping save")
+        return data
+    data.save_pickle("test.data")
+    return data
 
-data.save_pickle("test.data")
-dataloaded = DataSet.load_pickle("test.data")
-# print(dataloaded)
+
+if __name__ == "__main__":
+    cli_make_dataset()
