@@ -283,14 +283,16 @@ class DataSet:
     def __str__(self):
         return "\n\n".join(str(item) for item in self.data)
 
-    def save(self, path: str):
+    def save_pickle(self, path: str):
         with open(path, mode="wb") as file:
             pickle.dump(self, file)
 
-    @staticmethod
-    def load(path) -> DataSet:
+    @classmethod
+    def load_pickle(cls, path) -> DataSet:
         with open(path, mode="rb") as file:
-            return pickle.load(file)
+            instance = pickle.load(file)
+        assert isinstance(instance, cls)
+        return instance
 
 
 # data = DataPoint.mk_augmented_points(soundfile1, augs)
@@ -298,8 +300,6 @@ class DataSet:
 data = DataSet.load_wavs(augs1, n=4)
 print(data)
 
-# data = DataSet.load_db([Noop])
-# print(data)
-# data.save("test.data")
-# dataloaded = DataSet.load("test.data")
+data.save_pickle("test.data")
+dataloaded = DataSet.load_pickle("test.data")
 # print(dataloaded)
