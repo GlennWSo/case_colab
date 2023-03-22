@@ -14,7 +14,7 @@ def make_dataset():
     if low == "no" or low == "n" or low == "":
         print("skipping save")
         return data
-    data.save_pickle("test.data")
+    data.save_pickle(path)
     return data
 
 
