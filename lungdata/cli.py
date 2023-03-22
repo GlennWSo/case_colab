@@ -3,7 +3,7 @@ from lungdata.augment import DEFUALT_AUGS
 from lungdata.utils import str2slice
 
 
-def cli_make_dataset():
+def make_dataset():
     slice1 = str2slice(input("load records: [slice]\n"))
     print(f"building data using records[{slice1}]")
     data = DataSet.load_wavs(DEFUALT_AUGS, s=slice1)
@@ -20,6 +20,6 @@ def cli_make_dataset():
 
 
 if __name__ == "__main__":
-    cli_make_dataset()
+    make_dataset()
     data = DataSet.load_pickle("test.data")
     print(data)

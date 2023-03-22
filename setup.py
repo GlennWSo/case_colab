@@ -17,8 +17,8 @@ setup(
     #     "lungdata": "src",
     # },
     # install_requires=["pyvista", "numpy"],
-    # entry_points={
-    #     "console_scripts": ["greet=hello:greet"],
-    # },
+    entry_points={
+        "console_scripts": ["pickle_db=lungdata.cli:make_dataset"],
+    },
     zip_safe=False,
 )
