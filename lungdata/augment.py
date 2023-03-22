@@ -82,17 +82,33 @@ class Pitch(Balancer):
         return np.interp(xq, xp, x)
 
 
+@dataclass
+class Noise(Balancer):
+    magnitude: float = 0.005
+
+    def modify(self, x):
+        return x + self.magnitude * np.random.randn(*x.shape)
+
+
 def mk_balanced_augs(recs: Sequence[Record]) -> Augs:
     """
     makes a set of augmentations that balances diagionis
     """
     diag_fractions = record_stats(recs)["major_fraction"]["diag"]
-    speeds = [x for x in np.linspace(0.7, 1.5, 5) if x != 1.0]
-    n_augs = len(speeds) + 1
+    speeds = [x for x in np.linspace(0.7, 1.5, 10) if x != 1.0]
+    noise_levels = [0.002 * 1.1 * n for n in range(1, 11)]
+    n_augs = len(speeds) + len(noise_levels) + 1
 
-    augs = [Noop(1337, diag_fractions, n_augs)] + [
+    pitch_augs = [
         Pitch(i, diag_fractions, n_augs, speed) for i, speed in enumerate(speeds)
     ]
+
+    noise_augs = [
+        Noise(i + len(pitch_augs), diag_fractions, n_augs, magnitude)
+        for i, magnitude in enumerate(noise_levels)
+    ]
+
+    augs = [Noop(1337, diag_fractions, n_augs)] + pitch_augs + noise_augs
     return augs
 
 
