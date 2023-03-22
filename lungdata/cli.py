@@ -4,9 +4,9 @@ from lungdata.utils import str2slice
 
 
 def make_dataset():
-    slice1 = str2slice(input("load records: [slice]\n"))
-    print(f"building data using records[{slice1}]")
-    data = DataSet.load_wavs(DEFUALT_AUGS, s=slice1)
+    str_slice = input("load records: [slice]\n")
+    print(f"building data using records[{str_slice}]")
+    data = DataSet.load_wavs(DEFUALT_AUGS, s=str2slice(str_slice))
     print(data)
     print("---\n")
 
