@@ -12,29 +12,27 @@
         pkgs = import nixpkgs {
           inherit  system;
         };
-        mach = mach-nix.lib.${system};
-        pythonVersion = "python39";
-        pythonEnv = mach.mkPython {
-          python = pythonVersion;
-          # requirments = builtins.readFile ./requirements.txt;
-          requirements = ''
-            numpy
-            scipy
-            matplotlib
-            ipython
-            keras
-            tensorflow
-            librosa
-            pandas
-            soundfile
+        py = pkgs.python39Packages;
+
+        pyDeps = [
+            py.scipy
+            py.matplotlib
+            py.ipython
+            py.keras
+            # py.tensorflow
+            py.librosa
+            py.pandas
+            py.soundfile
+            py.numpy
             # flask
             # waitress
-          '';
-          providers.soundfile = "nixpkgs";
-            
-        };
-
-
+        ];
+        devTools = [
+          py.flake8
+          py.black
+        ]; 
+        
+        
       in
         {
           devShell = pkgs.mkShell  {
@@ -43,21 +41,27 @@
             root = ./.;
 
             buildInputs = [
-              pythonEnv
+              pyDeps
+              py.venvShellHook
+              devTools
             ];
 
             MPLBACKEND = "webagg";
             
             QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.qt5.qtbase.bin}/lib/qt-${pkgs.qt5.qtbase.version}/plugins";
+
             postVenvCreation = ''
               unset SOURCE_DATE_EPOCH
+              # allow pip to install wheels
+              export DB_PATH=$PWD/db/
+              pip install -e .
             '';
-
-            shellHook = ''
+            postShellHook = ''
+              # allow pip to install wheels
+              unset SOURCE_DATE_EPOCH
               # allow pip to install wheels
               export DB_PATH=$PWD/db/
               echo Welcome to the Case event Env!
-              unset SOURCE_DATE_EPOCH
             '';
           };
         }
