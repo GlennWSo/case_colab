@@ -4,10 +4,11 @@ from time import time
 from dataclasses import dataclass, fields
 from typing import List, Sequence, Iterator
 import pickle
+import toml
 
 # local
 from .features import SoundFeatures
-from .records import Record, RECORDS
+from .records import Record, RECORDS, record_stats
 from .augment import Aug, Augs, mk_balanced_augs
 
 
@@ -105,14 +106,29 @@ class DataSet:
             avg_dt = sum(dts) / len(dts)
             eta = s2hms(avg_dt * (n_recs - i))
             print(
-                f"augmented datapoints: {len(data)}, processed records: {i}/{n_recs}, eta: {eta}"
+                f"augmented datapoints: {len(data)}, processed records: {i+1}/{n_recs}, eta: {eta}"
             )
         return cls(data)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         lines = [f"{type(self).__name__}: {id(self)}\n---"]
         lines.extend(str(point) for point in self.data)
         return "\n\n".join(lines)
+
+    def __str__(self) -> str:
+        """
+        create a summary of self
+        """
+        stats = record_stats([dp.record for dp in self])
+        stats_str = toml.dumps(stats)
+        msg = f"""
+{type(self).__name__} at {id(self)}
+len: {len(self)}
+
+#stats
+{stats_str}
+        """
+        return msg
 
     def reduce(self) -> DataSet:
         data = [point.reduce() for point in self.data]
