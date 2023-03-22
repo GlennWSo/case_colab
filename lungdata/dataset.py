@@ -8,7 +8,7 @@ import pickle
 # local
 from .features import SoundFeatures
 from .records import Record, RECORDS
-from .augment import Aug, Augs, DEFUALT_AUGS
+from .augment import Aug, Augs, mk_balanced_augs
 
 
 @dataclass
@@ -82,11 +82,14 @@ class DataSet:
         return all(p1 == p2 for p1, p2 in zip(self, o))
 
     @classmethod
-    def load_wavs(cls, augs: Augs, records=RECORDS, s=slice(0, -1)) -> DataSet:
+    def load_wavs(cls, records=RECORDS, augs=None, s=slice(0, -1)) -> DataSet:
         if type(s) == int:
             recs = [records[s]]
         else:
             recs = records[s]
+
+        if augs is None:
+            augs = mk_balanced_augs(recs)
 
         n_recs = len(recs)
         for r in recs:

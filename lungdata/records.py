@@ -46,15 +46,12 @@ def get_patient_data():
 
 
 PDATA = get_patient_data()
+
 rare_limit = 3
-
-
-def diag_count(data):
-    diag_names = np.unique(data["diag"])
-    return {name: (data["diag"] == name).sum() for name in diag_names}
-
-
-rare_diags = {key for key, val in diag_count(PDATA).items() if val <= rare_limit}
+all_diag_names = set(np.unique(PDATA["diag"]))
+p_diag_count = {name: (PDATA["diag"] == name).sum() for name in all_diag_names}
+rare_diags = {key for key, val in p_diag_count.items() if val <= rare_limit}
+diag_names = all_diag_names - rare_diags
 
 
 @dataclass
@@ -121,12 +118,14 @@ class Record:
 
         return limit <= sum(1 for r in recs if r.pid == pid)
 
+    default_caps = {
+        "COPD": 4,
+    }
+    default_caps.update({name: 0 for name in rare_diags})
+
     @classmethod
     def load_wavs(
-        cls,
-        folder: str = SAMPLES_PATH,
-        s=slice(0, -1),
-        caps={"COPD": 4},
+        cls, folder: str = SAMPLES_PATH, s=slice(-1), caps=default_caps
     ) -> List[Record]:
         wav_paths = [
             os.path.join(folder, file)
@@ -145,3 +144,25 @@ class Record:
 
 
 RECORDS = Record.load_wavs()
+
+
+def record_stats(recs: Sequence[Record]):
+    counts = {
+        "diag": {name: sum(1 for r in recs if r.diag == name) for name in diag_names},
+        "gender": {name: sum(1 for r in recs if r.sex == name) for name in {"F", "M"}},
+    }
+    max_count = {name: max(counts[name].values()) for name in counts}
+
+    major_fraction = {}
+
+    for stat_type, max_n in max_count.items():
+        major_fraction[stat_type] = {
+            key: value / max_n for key, value in counts[stat_type].items()
+        }
+
+    stats = {
+        "counts": counts,
+        "max_count": max_count,
+        "major_fraction": major_fraction,
+    }
+    return stats

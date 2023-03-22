@@ -1,13 +1,13 @@
 # str
 from abc import ABC, abstractmethod
-from typing import Sequence
+from typing import Sequence, Dict
 from dataclasses import dataclass
 
 # third
 import numpy as np
 
 # local
-from .records import Record
+from .records import Record, record_stats
 
 
 class Aug(ABC):
@@ -22,8 +22,7 @@ class Aug(ABC):
         """
         pass
 
-    @staticmethod
-    def apply2(_r: Record):
+    def apply2(_self, _r: Record) -> bool:
         """
         Rule for deteriming which records to apply this augmentation
         Default implementation: apply to all records
@@ -34,14 +33,36 @@ class Aug(ABC):
 Augs = Sequence[Aug]
 
 
-class Noop(Aug):
+@dataclass
+class Balancer(Aug):
+    """
+    abstract class
+    """
+
+    seed: int
+    diag_prob: Dict
+    n: int
+
+    def __post_init__(self):
+        self.rng = np.random.default_rng(self.seed)
+
+    def apply2(self, r) -> bool:
+        try:
+            p = 1 / self.diag_prob[r.diag] / self.n
+            return self.rng.random() < p
+        except KeyError:
+            return True
+
+
+@dataclass
+class Noop(Balancer):
     @staticmethod
     def modify(x):
         return x
 
 
 @dataclass
-class Trunc(Aug):
+class Trunc(Balancer):
     f_start: float = 0.0
     f_end: float = 1.0
 
@@ -52,18 +73,27 @@ class Trunc(Aug):
 
 
 @dataclass
-class Pitch(Aug):
-    factor: float
-
-    @staticmethod
-    def apply2(r: Record):
-        return r.diag != "COPD"
+class Pitch(Balancer):
+    speed: float
 
     def modify(self, x):
         xp = np.arange(len(x))
-        xq = np.arange(0, len(x), self.factor)
+        xq = np.arange(0, len(x), self.speed)
         return np.interp(xq, xp, x)
 
 
-speeds = [Pitch(f) for f in np.linspace(0.7, 1.5, 5) if f != 1.0]
-DEFUALT_AUGS = [Noop] + speeds
+def mk_balanced_augs(recs: Sequence[Record]) -> Augs:
+    """
+    makes a set of augmentations that balances diagionis
+    """
+    diag_fractions = record_stats(recs)["major_fraction"]["diag"]
+    speeds = [x for x in np.linspace(0.7, 1.5, 5) if x != 1.0]
+    n_augs = len(speeds) + 1
+
+    augs = [Noop(1337, diag_fractions, n_augs)] + [
+        Pitch(i, diag_fractions, n_augs, speed) for i, speed in enumerate(speeds)
+    ]
+    return augs
+
+
+DEFAULT_AUGS = [Noop(0, {}, 1)]

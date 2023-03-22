@@ -1,12 +1,11 @@
 from lungdata.dataset import DataSet
-from lungdata.augment import DEFUALT_AUGS
 from lungdata.utils import str2slice
 
 
 def make_dataset():
     str_slice = input("load records: [slice]\n")
     print(f"building data using records[{str_slice}]")
-    data = DataSet.load_wavs(DEFUALT_AUGS, s=str2slice(str_slice))
+    data = DataSet.load_wavs(s=str2slice(str_slice))
     print(data)
     print("---\n")
 
