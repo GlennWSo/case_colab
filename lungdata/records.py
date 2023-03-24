@@ -59,8 +59,9 @@ class Record:
     """
     Contains all known meta/labels about records
 
-    # feilds:
+    # abrivations:
     pid = patient id
+    diag = diagnosis
     rid = record id # Note: (pid+rid) is a unique identifier for the sound files
     loc = location on the body where sound was taken
     mode = multi or single channel recording

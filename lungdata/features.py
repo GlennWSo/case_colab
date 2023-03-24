@@ -1,7 +1,7 @@
 # std
 from __future__ import annotations
 from dataclasses import dataclass, asdict
-from typing import Tuple
+from typing import Tuple, Callable
 
 # third
 import numpy as np
@@ -41,23 +41,36 @@ class SoundFeatures:
         return cls(**kwargs)
 
     @property
-    def data_dict(self):
+    def data(self):
         return {key: val for key, val in asdict(self).items() if key != "sr"}
 
-    def mean(self) -> SoundFeatures:
-        data = asdict(self)
-        for key, val in data.items():
-            if key == "sr":
-                continue
-            data[key] = val.mean(axis=1)
-        return type(self)(**data)
+    def map_inplace(self, func: Callable, *args, **kwargs):
+        """
+        updates data in self using func with values:
+            found in self.data and in *args **kwargs.
+        """
+        for key, val in self.data.items():
+            self.data[key] = func(val, *args, **kwargs)
+
+    def map(self, func: Callable, *args, **kwargs) -> SoundFeatures:
+        """
+        Create a new instace of Self, by mapping self.data using func and *arg, **kwargs
+        """
+        new_data = {key: func(val, *args, **kwargs) for key, val in self.data.items()}
+        return type(self)(sr=self.sr, **new_data)
 
     def shapes(self) -> Tuple:
-        return {
-            key: val.shape
-            for key, val in asdict(self).items()
-            if isinstance(val, np.ndarray)
-        }
+        return {key: val.shape for key, val in self.data.items()}
+
+    def __repr__(self):
+        def scalar_xor_shape(x):
+            if np.isscalar(x):
+                return x
+            if len(x) <= 1:
+                return x
+            return x.shape
+
+        return str({key: scalar_xor_shape(val) for key, val in self.data.items()})
 
     def __eq__(self, o: SoundFeatures) -> bool:
         if not isinstance(o, SoundFeatures):
@@ -66,10 +79,8 @@ class SoundFeatures:
         if not self.shapes() == o.shapes():
             return False
 
-        f1 = self.data_dict.values()
-        f2 = self.data_dict.values()
+        f1 = self.data.values()
+        f2 = self.data.values()
+
         data_eq = all((f1 == f2).all() for f1, f2 in zip(f1, f2))
         return data_eq and self.sr == o.sr
-
-    def __repr__(self) -> str:
-        return str(self.shapes())

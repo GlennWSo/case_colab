@@ -2,7 +2,7 @@
 from __future__ import annotations
 from time import time
 from dataclasses import dataclass, fields
-from typing import List, Sequence, Iterator
+from typing import List, Sequence, Iterator, Tuple, Callable
 import pickle
 import toml
 
@@ -35,9 +35,12 @@ class DataPoint:
 
         return data
 
-    def reduce(self) -> DataPoint:
-        mfeatures = self.features.mean()
+    def map(self, func, *args, **kwargs) -> DataPoint:
+        mfeatures = self.features.map(func, *args, **kwargs)
         return type(self)(self.record, self.aug, mfeatures)
+
+    def map_inplace(self, func, *args, **kwargs):
+        self.features.map_inplace(func, *args, **kwargs)
 
     def __repr__(self) -> str:
         lines = [f"{type(self).__name__}: {id(self)}"]
@@ -69,7 +72,9 @@ class DataSet:
         self.data: Sequence[DataPoint] = data
 
     def __getitem__(self, s):
-        return self.data[s]
+        if type(s) == int:
+            return self.data[s]
+        return type(self)(self.data[s])
 
     def __len__(self) -> int:
         return len(self.data)
@@ -81,6 +86,15 @@ class DataSet:
         if len(self) != len(o):
             return False
         return all(p1 == p2 for p1, p2 in zip(self, o))
+
+    def map(self, func: Callable, *args, **kwargs) -> DataSet:
+        return type(self)([dp.map(func, *args, **kwargs) for dp in self])
+
+    def map_inplace(self, func: Callable, *args, **kwargs) -> DataSet:
+        return type(self)([dp.map_inplace(func, *args, **kwargs) for dp in self])
+
+    def mk_xy(self) -> Tuple:
+        pass
 
     @classmethod
     def load_wavs(cls, records=RECORDS, augs=None, s=slice(0, -1)) -> DataSet:
