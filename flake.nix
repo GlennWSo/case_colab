@@ -32,6 +32,7 @@
           py.ipython
           py.black
           py.wheel
+          py.twine
           edit
         ]; 
         
