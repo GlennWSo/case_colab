@@ -20,21 +20,16 @@
             zellij a $name || zellij -s $name -l python
             '';
 
-        pyDeps = [
-            py.scipy
-            py.matplotlib
-            py.ipython
-            py.keras
-            # py.tensorflow
+        runTime= [
             py.librosa
             py.pandas
             py.soundfile
             py.numpy
-            # flask
-            # waitress
         ];
         devTools = [
+          py.venvShellHook
           py.flake8
+          py.ipython
           py.black
           edit
         ]; 
@@ -48,8 +43,7 @@
             root = ./.;
 
             buildInputs = [
-              pyDeps
-              py.venvShellHook
+              runTime
               devTools
             ];
 

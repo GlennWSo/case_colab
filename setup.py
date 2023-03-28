@@ -16,7 +16,12 @@ setup(
     # package_dir={
     #     "lungdata": "src",
     # },
-    # install_requires=["pyvista", "numpy"],
+    install_requires=[
+        "numpy",
+        "librosa",
+        "pandas",
+        "soundfile",
+    ],
     entry_points={
         "console_scripts": ["pickle_db=lungdata.cli:make_dataset"],
     },
