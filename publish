@@ -12,6 +12,6 @@ python setup.py sdist bdist_wheel || exit
 python dist_rename.py  || exit
 
 git tag -a $ver || exit
-git push origin $ver  || exit
 
-twine upload -u $user -p $pass dist/* || exit
+twine upload -u $user -p $pass dist/* || git tag -d $ver && exit
+git push origin $ver  || exit
