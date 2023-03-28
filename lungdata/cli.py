@@ -1,3 +1,4 @@
+from __future__ import annotations
 from lungdata.dataset import DataSet
 from lungdata.utils import str2slice
 

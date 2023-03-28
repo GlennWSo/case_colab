@@ -1,7 +1,7 @@
 # std
 from __future__ import annotations
 from dataclasses import dataclass, asdict
-from typing import Tuple, Callable
+from typing import Tuple, Callable, Dict
 
 # third
 import numpy as np
@@ -41,26 +41,84 @@ class SoundFeatures:
         return cls(**kwargs)
 
     @property
-    def data(self):
+    def data(self) -> Dict:
         return {key: val for key, val in asdict(self).items() if key != "sr"}
 
-    def map_inplace(self, func: Callable, *args, **kwargs):
-        """
-        updates data in self using func with values:
-            found in self.data and in *args **kwargs.
-        """
-        for key, val in self.data.items():
-            self.data[key] = func(val, *args, **kwargs)
+    @property
+    def values(self) -> np.ndarray:
+        return tuple(self.data.values())
 
-    def map(self, func: Callable, *args, **kwargs) -> SoundFeatures:
+    def map(self, func: Callable, inplace=False, *args, **kwargs) -> SoundFeatures:
         """
-        Create a new instace of Self, by mapping self.data using func and *arg, **kwargs
+        Create a new data by mapping data in self using func and *arg, **kwargs
+
+        if inplace==True:
+            updates self with new data
+        else:
+            returns new instance of Self
         """
         new_data = {key: func(val, *args, **kwargs) for key, val in self.data.items()}
-        return type(self)(sr=self.sr, **new_data)
+        if not inplace:
+            return type(self)(sr=self.sr, **new_data)
+        for key, val in new_data:
+            setattr(self, key, val)
 
     def shapes(self) -> Tuple:
         return {key: val.shape for key, val in self.data.items()}
+
+    def has_tdim(self) -> bool:
+        # all features must be non scalar
+        values = self.values
+        if any(np.isscalar(data) for data in values):
+            return False
+        # all features must be atleast 2d
+        if not all(data.ndim >= 2 for data in values):
+            return False
+        return True
+
+    def is_time_homo(self) -> bool:
+        """
+        is size of time dimesion the same for all features
+        """
+        if not self.has_tdim():
+            return False
+        values = self.values
+        if len(values) == 1:
+            return True
+        len1 = values[0].shape[1]
+        return all(data.shape[1] == len1 for data in values[1:])
+
+    def max_tdim(self) -> int:
+        """
+        the largest time dimension among features
+        """
+        assert self.has_tdim(), "all sound features must have a time dimension"
+        return max(val.shape[1] for val in self.values)
+
+    def pad_feature(
+        self, feature: np.ndarray, tdim: int, pad_end: bool, **kwargs
+    ) -> np.ndarray:
+        delta = tdim - feature.shape[1]
+        assert delta >= 0, "target size must be >= current size of features"
+        if pad_end:
+            padding = ((0, 0), (0, delta))
+        else:
+            padding = ((0, 0), (delta, 0))
+        return np.pad(feature, pad_width=padding, **kwargs)
+
+    def pad(self, tdim: int, pad_end=False, inplace=False, **kwargs):
+        """
+        pads time dim of each feature to size of arg: "tdim"
+        """
+        padded_data = {
+            key: self.pad_feature(val, tdim, pad_end, **kwargs)
+            for key, val in self.data.items()
+        }
+
+        if not inplace:
+            return SoundFeatures(self.sr, **padded_data)
+        for key, val in padded_data.items():
+            setattr(self, key, val)
 
     def __repr__(self):
         def scalar_xor_shape(x):

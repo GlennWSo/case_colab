@@ -1,10 +1,12 @@
-# std
 from __future__ import annotations
 from time import time
 from dataclasses import dataclass, fields
 from typing import List, Sequence, Iterator, Tuple, Callable
 import pickle
 import toml
+
+# third
+import numpy as np
 
 # local
 from .features import SoundFeatures
@@ -35,12 +37,23 @@ class DataPoint:
 
         return data
 
-    def map(self, func, *args, **kwargs) -> DataPoint:
-        mfeatures = self.features.map(func, *args, **kwargs)
-        return type(self)(self.record, self.aug, mfeatures)
+    def map(self, func, *args, inplace=False, **kwargs) -> DataPoint:
+        """
+        Create a new data by mapping data in self using func and *arg, **kwargs
 
-    def map_inplace(self, func, *args, **kwargs):
-        self.features.map_inplace(func, *args, **kwargs)
+        if inplace==True:
+            updates self with new data
+        else:
+            returns new instance of Self
+        """
+        mfeatures = self.features.map(func, *args, **kwargs, inplace=inplace)
+        if not inplace:
+            return type(self)(self.record, self.aug, mfeatures)
+
+    def pad(self, tdim: int, pad_end=False, inplace=False, **kwargs):
+        pfeatures = self.features.pad(tdim, pad_end, inplace, **kwargs)
+        if not inplace:
+            return type(self)(self.record, self.aug, pfeatures)
 
     def __repr__(self) -> str:
         lines = [f"{type(self).__name__}: {id(self)}"]
@@ -87,14 +100,62 @@ class DataSet:
             return False
         return all(p1 == p2 for p1, p2 in zip(self, o))
 
-    def map(self, func: Callable, *args, **kwargs) -> DataSet:
-        return type(self)([dp.map(func, *args, **kwargs) for dp in self])
+    @property
+    def features(self) -> np.ndarray:
+        return np.array([dp.features.values for dp in self])
 
-    def map_inplace(self, func: Callable, *args, **kwargs) -> DataSet:
-        return type(self)([dp.map_inplace(func, *args, **kwargs) for dp in self])
+    def map(self, func: Callable, *args, inplace=False, **kwargs) -> DataSet:
+        """
+        Create new SoundFeatures by appling func.
+        if inplace:
+            update inplace
+        else:
+            return new DataSet
+        """
+        if not inplace:
+            return type(self)([dp.map(func, *args, **kwargs) for dp in self])
+        for dp in self:
+            dp.map(func, *args, **kwargs, inplace=True)
 
-    def mk_xy(self) -> Tuple:
-        pass
+    def has_time_dim(self) -> bool:
+        if len(self) == 0:
+            return False
+        return all(dp.features.has_tdim() for dp in self)
+
+    def max_tdim(self) -> int:
+        return max(dp.features.max_tdim() for dp in self)
+
+    def pad(self, pad_end=False, inplace=False, **kwargs):
+        """
+        Pad the soundfeatures so the time dimension size the same size for all datapoints
+        if inplace:
+            update inplace
+        else:
+            return a new instance of DataSet
+        """
+        tdim = self.max_tdim()
+        if not inplace:
+            return type(self)(
+                [dp.pad(tdim, pad_end, inplace=False, **kwargs) for dp in self]
+            )
+        for dp in self:
+            dp.pad(tdim, pad_end, inplace=True, **kwargs)
+
+    def is_time_homo(self) -> bool:
+        """
+        checks if all features have same time size
+        """
+        if not self.has_time_dim():
+            return False
+
+        if len(self) == 1:
+            return True
+
+        len1 = self[0].features.max_tdim()
+        for dp in self[1:]:
+            if not dp.features.is_time_homo() or (dp.features.max_tdim() != len1):
+                return False
+        return True
 
     @classmethod
     def load_wavs(cls, records=RECORDS, augs=None, s=slice(0, -1)) -> DataSet:
