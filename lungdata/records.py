@@ -144,9 +144,6 @@ class Record:
         return capped
 
 
-RECORDS = Record.load_wavs()
-
-
 def record_stats(recs: Sequence[Record]):
     counts = {
         "diag": {name: sum(1 for r in recs if r.diag == name) for name in diag_names},

@@ -10,7 +10,7 @@ import numpy as np
 
 # local
 from .features import SoundFeatures
-from .records import Record, RECORDS, record_stats
+from .records import Record, record_stats
 from .augment import Aug, Augs, mk_balanced_augs
 
 
@@ -158,7 +158,10 @@ class DataSet:
         return True
 
     @classmethod
-    def load_wavs(cls, records=RECORDS, augs=None, s=slice(0, -1)) -> DataSet:
+    def load_wavs(cls, records=None, augs=None, s=slice(0, -1)) -> DataSet:
+        if records is None:
+            records = Record.load_wavs()
+
         if type(s) == int:
             recs = [records[s]]
         else:
