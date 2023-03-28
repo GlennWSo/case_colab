@@ -6,12 +6,12 @@ set ver "$(cat VERSION)"
 
 echo creating release $ver
 
-# echo "user: $user pass: $pass "
-git tag -a $ver || exit
-git push origin $ver  || exit
 
 rm -rf dist
-python setup.py sdist bdist_wheel
-python dist_rename.py 
+python setup.py sdist bdist_wheel || exit
+python dist_rename.py  || exit
+
+git tag -a $ver || exit
+git push origin $ver  || exit
 
 twine upload -u $user -p $pass dist/* || exit
