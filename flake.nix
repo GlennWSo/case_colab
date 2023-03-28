@@ -31,6 +31,7 @@
           py.flake8
           py.ipython
           py.black
+          py.wheel
           edit
         ]; 
         
