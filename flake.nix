@@ -14,6 +14,12 @@
         };
         py = pkgs.python39Packages;
 
+        edit = pkgs.writeScriptBin "edit" ''
+            #!/usr/bin/env fish
+            set name=case_ai
+            zellij a $name || zellij -s $name -l python
+            '';
+
         pyDeps = [
             py.scipy
             py.matplotlib
@@ -30,6 +36,7 @@
         devTools = [
           py.flake8
           py.black
+          edit
         ]; 
         
         
@@ -47,13 +54,12 @@
             ];
 
             MPLBACKEND = "webagg";
-            
             QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.qt5.qtbase.bin}/lib/qt-${pkgs.qt5.qtbase.version}/plugins";
 
             postVenvCreation = ''
               unset SOURCE_DATE_EPOCH
               # allow pip to install wheels
-              export DB_PATH=$PWD/db/
+              pip install pytest
               pip install -e .
             '';
             postShellHook = ''
@@ -61,6 +67,7 @@
               unset SOURCE_DATE_EPOCH
               # allow pip to install wheels
               export DB_PATH=$PWD/db/
+              export IPYTHONDIR=$PWD/.ipy/           
               echo Welcome to the Case event Env!
             '';
           };
