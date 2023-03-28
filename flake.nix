@@ -25,6 +25,7 @@
             py.pandas
             py.soundfile
             py.numpy
+            py.toml
         ];
         devTools = [
           py.venvShellHook
