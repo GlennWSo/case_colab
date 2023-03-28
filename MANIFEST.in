@@ -1,0 +1,3 @@
+include lungdata/meta/demographic_info.txt
+include lungdata/meta/ICBHI_Challenge_diagnosis.txt
+include lungdata/meta/README.md

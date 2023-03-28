@@ -10,13 +10,13 @@ from dataclasses import dataclass, field
 import librosa
 
 # local
-from .path import DB_PATH, SAMPLES_PATH
+from .path import META_PATH, SAMPLES_PATH
 from .features import SoundFeatures
 
 
 def get_patient_data():
     def _mk_diag_data():
-        diag_path = os.path.join(DB_PATH, "ICBHI_Challenge_diagnosis.txt")
+        diag_path = os.path.join(META_PATH, "ICBHI_Challenge_diagnosis.txt")
         with open(diag_path, "r") as file:
             lines = file.readlines()
         split_lines = (line.split() for line in lines)
@@ -24,7 +24,7 @@ def get_patient_data():
         return pd.Series(diag_map)
 
     def _mk_demo_data():
-        demo_path = os.path.join(DB_PATH, "demographic_info.txt")
+        demo_path = os.path.join(META_PATH, "demographic_info.txt")
         with open(demo_path, "r") as file:
             lines = file.readlines()
         split_lines = (line.split() for line in lines)

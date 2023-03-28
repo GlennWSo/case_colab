@@ -62,7 +62,7 @@
               # allow pip to install wheels
               unset SOURCE_DATE_EPOCH
               # allow pip to install wheels
-              export DB_PATH=$PWD/db/
+              export LUNG_SOUND_PATH=$PWD/db/
               export IPYTHONDIR=$PWD/.ipy/           
               echo Welcome to the Case event Env!
             '';

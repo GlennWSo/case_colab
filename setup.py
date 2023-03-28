@@ -13,11 +13,13 @@ setup(
     author_email="gward@python.net",
     packages=[
         "lungdata",
+        "lungdata.meta",
     ],
     # tell setup that the root python source is inside py folder
     # package_dir={
     #     "lungdata": "src",
     # },
+    include_package_data=True,
     install_requires=[
         "numpy",
         "librosa",
