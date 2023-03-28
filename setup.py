@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
-
 from setuptools import setup
+
+with open("VERSION", mode="r") as file:
+    version = file.read()
 
 setup(
     name="lungdata",
-    version="0.0.1",
+    version=version,
     description="",
     author="Glenn",
     author_email="gward@python.net",

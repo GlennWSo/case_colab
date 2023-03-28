@@ -1,0 +1,17 @@
+#!/usr/bin/env fish
+
+set user "__token__"
+set pass "$(cat .token)"
+set ver "$(cat VERSION)"
+
+echo creating release $ver
+
+# echo "user: $user pass: $pass "
+git tag -a $ver || exit
+git push origin $ver  || exit
+
+rm -rf dist
+python setup.py sdist bdist_wheel
+python dist_rename.py 
+
+twine upload -u $user -p $pass dist/* || exit
