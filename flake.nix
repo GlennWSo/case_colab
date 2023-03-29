@@ -12,7 +12,7 @@
         pkgs = import nixpkgs {
           inherit  system;
         };
-        py = pkgs.python39Packages;
+        py = pkgs.python310Packages;
 
         edit = pkgs.writeScriptBin "edit" ''
             #!/usr/bin/env fish
