@@ -32,6 +32,9 @@ class Aug(ABC):
 
 Augs = Sequence[Aug]
 
+# TODO serparate balancing and augmentation
+# balancing should be handeld by dataset.py
+
 
 @dataclass
 class Balancer(Aug):
@@ -96,7 +99,7 @@ def mk_balanced_augs(recs: Sequence[Record]) -> Augs:
     """
     diag_fractions = record_stats(recs)["major_fraction"]["diag"]
     speeds = [x for x in np.linspace(0.7, 1.5, 10) if x != 1.0]
-    noise_levels = [0.002 * 1.1 * n for n in range(1, 11)]
+    noise_levels = [0.002 * 1.1**n for n in range(1, 11)]  # TODO 3 noise levels
     n_augs = len(speeds) + len(noise_levels) + 1
 
     pitch_augs = [
