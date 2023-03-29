@@ -1,12 +1,14 @@
 from __future__ import annotations
 from time import time
 from dataclasses import dataclass, fields
-from typing import List, Sequence, Iterator, Tuple, Callable
+from typing import List, Sequence, Iterator, Callable, Dict, Optional
 import pickle
 import toml
 
 # third
 import numpy as np
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
 # local
 from .features import SoundFeatures
@@ -80,9 +82,21 @@ def s2hms(seconds: float, decimals: int = 1) -> str:
     return ":".join(hms)
 
 
+class DummyEncoder(LabelEncoder):
+    def fit(self, y):
+        pass
+
+    def transform(self, y):
+        return y
+
+    def inverse_transform(self, y):
+        return y
+
+
 class DataSet:
     def __init__(self, data: Sequence[DataPoint]):
-        self.data: Sequence[DataPoint] = data
+        self.data = np.array(data)
+        self.encode()
 
     def __getitem__(self, s):
         if type(s) == int:
@@ -102,7 +116,76 @@ class DataSet:
 
     @property
     def features(self) -> np.ndarray:
-        return np.array([dp.features.values for dp in self])
+        return pd.DataFrame(
+            [dp.features.values for dp in self],
+            columns=[key for key in self[0].features.data.keys()],
+        )
+
+    @property
+    def records(self) -> List[Record]:
+        return [dp.record for dp in self]
+
+    @property
+    def labels(self) -> np.ndarray:
+        """
+        diag, age, sex, loc, mode, equip
+        """
+        data = {
+            "diag": [],
+            "age": [],
+            "sex": [],
+            "loc": [],
+            "mode": [],
+            "equip": [],
+        }
+
+        for r in self.records:
+            for key in data:
+                data[key].append(getattr(r, key))
+
+        for key, val in data.items():
+            data[key] = pd.Series(val, name=key)
+
+        return pd.DataFrame(data)
+
+    @staticmethod
+    def _encode_obj(data: pd.Series) -> LabelEncoder:
+        """
+        Create encoder for obj labels,
+        for numeric labels, create dummy encoder that just pass along data
+        """
+        if data.dtype is not np.dtype("O"):
+            return DummyEncoder()
+        le = LabelEncoder()
+        le.fit(data)
+        return le
+
+    def encode(self) -> Dict["str", LabelEncoder]:
+        """
+        make an encoder for self.labels
+        """
+        self._encoder = {
+            col_name: self._encode_obj(col_data)
+            for col_name, col_data in self.labels.items()
+        }
+        return self._encoder
+
+    @property
+    def encoders(self) -> Dict["str", LabelEncoder]:
+        if self._encoder is None:
+            self.encode()
+        return self._encoder
+
+    def encoded_labels(self) -> pd.DataFrame:
+        labels = self.labels
+        coded = {
+            name: self.encoders[name].transform(data) for name, data in labels.items()
+        }
+        return pd.DataFrame(coded)
+
+    def filter(self, dp_filter: Callable[[DataPoint], bool]) -> DataSet:
+        inds = [i for i, dp in enumerate(self) if dp_filter(dp)]
+        return self[inds]
 
     def map(self, func: Callable, *args, inplace=False, **kwargs) -> DataSet:
         """
