@@ -34,6 +34,7 @@
           py.black
           py.wheel
           py.twine
+          py.pillow
           edit
         ]; 
         
