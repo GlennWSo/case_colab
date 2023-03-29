@@ -35,9 +35,11 @@ c = get_config()  # noqa
 ## lines of code to run at IPython startup.
 #  Default: []
 c.InteractiveShellApp.exec_lines = [
+    # "clear",
     "%autoreload 2",
     "print('autoreload=2')",
 ]
+c.InteractiveShell.warn_venv = False
 
 ## A list of dotted module names of IPython extensions to load.
 #  Default: []
@@ -117,7 +119,7 @@ c.InteractiveShellApp.extensions = ["autoreload"]
 ## Set the log level by value or name.
 #  Choices: any of [0, 10, 20, 30, 40, 50, 'DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']
 #  Default: 30
-# c.Application.log_level = 30
+# c.Application.log_level = "ERROR"
 
 ## Configure additional log handlers.
 #
@@ -261,7 +263,7 @@ c.InteractiveShellApp.extensions = ["autoreload"]
 
 ## Whether to display a banner upon starting IPython.
 #  Default: True
-# c.TerminalIPythonApp.display_banner = True
+c.TerminalIPythonApp.display_banner = False
 
 ## Run the file referenced by the PYTHONSTARTUP environment
 #  See also: InteractiveShellApp.exec_PYTHONSTARTUP
