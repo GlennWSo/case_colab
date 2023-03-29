@@ -4,6 +4,7 @@ from dataclasses import dataclass, fields
 from typing import List, Sequence, Iterator, Callable, Dict, Optional
 import pickle
 import toml
+from functools import cached_property
 
 # third
 import numpy as np
@@ -75,8 +76,8 @@ class DataPoint:
 def s2hms(seconds: float, decimals: int = 1) -> str:
     dt = seconds
     hms = (
-        str(dt // 3600),
-        str((dt % 3600) // 60),
+        str(int(dt) // 3600),
+        str((int(dt) % 3600) // 60),
         str(round(dt % 60, decimals)),
     )
     return ":".join(hms)
@@ -91,6 +92,18 @@ class DummyEncoder(LabelEncoder):
 
     def inverse_transform(self, y):
         return y
+
+
+# augment frist without balancing.. Just increase the total n datapoints
+# then let the students balnace and pick the augmentations from prepared data
+
+
+def balanace(data: DataSet, n_samp_per_diag, augs: List[str]) -> DataSet:
+    """
+    filters the dataset in way that keeps datapoints with specified augmentations and balances the count of diags
+    next level let user assign wiegths to augmentations, to ctrl the propbalities of their use
+    """
+    # TODO!
 
 
 class DataSet:
@@ -114,7 +127,7 @@ class DataSet:
             return False
         return all(p1 == p2 for p1, p2 in zip(self, o))
 
-    @property
+    @cached_property
     def features(self) -> np.ndarray:
         return pd.DataFrame(
             [dp.features.values for dp in self],
@@ -126,7 +139,7 @@ class DataSet:
         return [dp.record for dp in self]
 
     @property
-    def labels(self) -> np.ndarray:
+    def labels(self) -> pd.DataFrame:
         """
         diag, age, sex, loc, mode, equip
         """
@@ -269,6 +282,9 @@ class DataSet:
             print(
                 f"augmented datapoints: {len(data)}, processed records: {i+1}/{n_recs}, eta: {eta}"
             )
+        total_time = sum(dts)
+
+        print(f"data compiling took: {s2hms(total_time)} ")
         return cls(data)
 
     def __repr__(self) -> str:
