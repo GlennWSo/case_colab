@@ -14,6 +14,17 @@ from .path import META_PATH, SAMPLES_PATH
 from .features import SoundFeatures
 
 
+def str2float(s: str) -> float:
+    """
+    if parese fails returns float("nan")
+    """
+    try:
+        f = float(s)
+    except ValueError:
+        f = float("nan")
+    return f
+
+
 def get_patient_data():
     def _mk_diag_data():
         diag_path = os.path.join(META_PATH, "ICBHI_Challenge_diagnosis.txt")
@@ -30,7 +41,7 @@ def get_patient_data():
         split_lines = (line.split() for line in lines)
         demo_map = {
             int(parts[0]): {
-                "age": parts[1],
+                "age": str2float(parts[1]),
                 "sex": parts[2],
             }
             for parts in split_lines
