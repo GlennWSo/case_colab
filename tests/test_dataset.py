@@ -7,7 +7,7 @@ from lungdata.utils import str2slice
 # test target
 from lungdata.dataset import DataSet
 
-data_path = "tests/test.data"
+data_path = "tests/test.pickle"
 
 
 def mk_data(s: slice):
