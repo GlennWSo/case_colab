@@ -1,5 +1,5 @@
 # project
-test.data
+*.pickle
 .token
 
 # nix
