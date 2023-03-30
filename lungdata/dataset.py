@@ -16,6 +16,8 @@ from .features import SoundFeatures
 from .records import Record, record_stats
 from .augment import Aug, Augs, mk_balanced_augs
 
+rng = np.random.default_rng(1337)
+
 
 @dataclass
 class DataPoint:
@@ -98,21 +100,13 @@ class DummyEncoder(LabelEncoder):
 # then let the students balnace and pick the augmentations from prepared data
 
 
-def balanace(data: DataSet, n_samp_per_diag, augs: List[str]) -> DataSet:
-    """
-    filters the dataset in way that keeps datapoints with specified augmentations and balances the count of diags
-    next level let user assign wiegths to augmentations, to ctrl the propbalities of their use
-    """
-    # TODO!
-
-
 class DataSet:
     def __init__(self, data: Sequence[DataPoint]):
         self.data = np.array(data)
         self.encode()
 
     def __getitem__(self, s):
-        if type(s) == int:
+        if np.isscalar(s):
             return self.data[s]
         return type(self)(self.data[s])
 
@@ -157,7 +151,11 @@ class DataSet:
                 data[key].append(getattr(r, key))
 
         for key, val in data.items():
-            data[key] = pd.Series(val, name=key)
+            if key == "age":
+                dtype = float
+            else:
+                dtype = str
+            data[key] = pd.Series(val, name=key, dtype=dtype)
 
         return pd.DataFrame(data)
 
@@ -199,6 +197,49 @@ class DataSet:
     def filter(self, dp_filter: Callable[[DataPoint], bool]) -> DataSet:
         inds = [i for i, dp in enumerate(self) if dp_filter(dp)]
         return self[inds]
+
+    def rpick(self, n) -> DataSet:
+        """
+        at random pick n datapoints from self and construct new DataSet
+        """
+        rand_inds = rng.choice(len(self), n, replace=False)
+        rdata = [self[i] for i in rand_inds]
+        return type(self)(rdata)
+
+    def under_sample(self, diag_size: int, aug_filter=None) -> DataSet:
+        """
+        filters the dataset in way that keeps datapoints with specified augmentations and balances the count of diags
+        next level let user assign wiegths to augmentations, to ctrl the propbalities of their use
+        """
+        diag_names = set(self.labels["diag"])
+        sampled_dp: List[DataPoint] = []
+        warning = """
+            warning: not enough data points of diag: {name}
+                {diag_size} samples requested for each diagnosis,
+                but dataset only has {n} of {name} (after aug_filter is applied)
+        """
+        for name in diag_names:
+            sub_set = self.filter(lambda dp: dp.record.diag == name)
+            if aug_filter is not None:
+                sub_set = sub_set.filter(lambda dp: aug_filter(dp.aug))
+            if len(sub_set) < diag_size:
+                print(warning.format(name=name, diag_size=diag_size, n=len(sub_set)))
+                sampled_dp.extend(sub_set.data)
+                continue
+            recs = set(dp.record for dp in sub_set)
+            n_picks = 0
+            n_consider = 0
+            for r in recs:
+                augsubset = sub_set.filter(lambda dp: dp.record == r)
+                n_consider += len(augsubset)
+                # n_picks/n_consider =aprox= diag_size/len(sub_set)
+                n_ideal = n_consider * diag_size / len(sub_set)
+                n = round(n_ideal - n_picks)
+                n_picks += n
+                picks = augsubset.rpick(n)
+                sampled_dp.extend(picks)
+
+        return type(self)(sampled_dp)
 
     def map(self, func: Callable, *args, inplace=False, **kwargs) -> DataSet:
         """

@@ -93,6 +93,9 @@ class Record:
     # lung cycles and anomalies
     annotations_file: str = field(init=False, repr=False)
 
+    def __hash__(self) -> int:
+        return hash((self.pid, self.rid))
+
     def __post_init__(self):
         """
         unpack the info in the file naming convention
