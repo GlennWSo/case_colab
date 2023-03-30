@@ -159,9 +159,12 @@ class Record:
 
 
 def record_stats(recs: Sequence[Record]):
+    diag_names = set(r.diag for r in recs)
     counts = {
         "diag": {name: sum(1 for r in recs if r.diag == name) for name in diag_names},
-        "gender": {name: sum(1 for r in recs if r.sex == name) for name in {"F", "M"}},
+        "gender": {
+            name: sum(1 for r in recs if r.sex == name) for name in {"F", "M", "NA"}
+        },
     }
     max_count = {name: max(counts[name].values()) for name in counts}
 
@@ -174,7 +177,6 @@ def record_stats(recs: Sequence[Record]):
 
     stats = {
         "counts": counts,
-        "max_count": max_count,
         "major_fraction": major_fraction,
     }
     return stats

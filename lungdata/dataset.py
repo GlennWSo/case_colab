@@ -166,7 +166,6 @@ class DataSet:
 
         for r in self.records:
             for key in data:
-                print(r)
                 data[key].append(getattr(r, key))
 
         for key, val in data.items():
@@ -187,8 +186,8 @@ class DataSet:
         if data.dtype is not np.dtype("O"):
             return DummyEncoder()
         le = LabelEncoder()
-        le.fit(data)
-        return le
+
+        return le.fit(data)
 
     def encode(self) -> Dict["str", LabelEncoder]:
         """
@@ -225,18 +224,23 @@ class DataSet:
         rdata = [self[i] for i in rand_inds]
         return type(self)(rdata)
 
-    def under_sample(self, diag_size: int, aug_filter=None) -> DataSet:
+    def under_sample(self, diag_size: int = 0, aug_filter=None) -> DataSet:
         """
         filters the dataset in way that keeps datapoints with specified augmentations and balances the count of diags
-        next level let user assign wiegths to augmentations, to ctrl the propbalities of their use
+
+        if diag_size == 0:
+            it will be set to the smalest diag class
         """
-        diag_names = set(self.labels["diag"])
-        sampled_dp: List[DataPoint] = []
+        if diag_size == 0:
+            diag_size = min(val for val in self.stats["counts"]["diag"].values())
+
         warning = """
             warning: not enough data points of diag: {name}
                 {diag_size} samples requested for each diagnosis,
                 but dataset only has {n} of {name} (after aug_filter is applied)
         """
+        diag_names = set(self.labels["diag"])
+        sampled_dp: List[DataPoint] = []
         for name in diag_names:
             sub_set = self.filter(lambda dp: dp.record.diag == name)
             if aug_filter is not None:
@@ -347,6 +351,14 @@ class DataSet:
         print(f"data compiling took: {s2hms(total_time)} ")
         return cls(data)
 
+    @property
+    def stats(self) -> Dict:
+        return record_stats(self.records)
+
+    @property
+    def pretty_stats(self) -> str:
+        return toml.dumps(self.stats)
+
     def __repr__(self) -> str:
         lines = [f"{type(self).__name__}: {id(self)}\n---"]
         lines.extend(str(point) for point in self.data)
@@ -356,14 +368,12 @@ class DataSet:
         """
         create a summary of self
         """
-        stats = record_stats([dp.record for dp in self])
-        stats_str = toml.dumps(stats)
         msg = f"""
 {type(self).__name__} at {id(self)}
 len: {len(self)}
 
 #stats
-{stats_str}
+{self.pretty_stats}
         """
         return msg
 
