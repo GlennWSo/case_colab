@@ -28,6 +28,9 @@ class SoundFeatures:
     mel: np.ndarray
     tonnetz: np.ndarray
 
+    def update(self, NewSoundFeatures) -> SoundFeatures:
+        return NewSoundFeatures(asdict(self))
+
     @classmethod
     def from_sound(cls, sound, sr):
         stft = np.abs(librosa.stft(sound))
@@ -60,7 +63,7 @@ class SoundFeatures:
         new_data = {key: func(val, *args, **kwargs) for key, val in self.data.items()}
         if not inplace:
             return type(self)(sr=self.sr, **new_data)
-        for key, val in new_data:
+        for key, val in new_data.items():
             setattr(self, key, val)
 
     def shapes(self) -> Tuple:

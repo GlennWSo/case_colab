@@ -1,7 +1,7 @@
 # str
 from abc import ABC, abstractmethod
-from typing import Sequence, Dict
-from dataclasses import dataclass
+from typing import Sequence
+from dataclasses import dataclass, astuple
 
 # third
 import numpy as np
@@ -12,8 +12,27 @@ from .records import Record, record_stats
 
 class Aug(ABC):
     """
-    Augmentation rule
+    Augmentation interface
+    example implentation of Aug for Linear
+    >>> @dataclass
+    >>> class Linear(Aug):
+    >>>    k: float
+    >>>    m: float
+    >>>
+    >>>    def modify(self, x):
+    >>>        y = x * self.k + self.m
+    >>>        return y
     """
+
+    @property
+    def name(self) -> str:
+        return type(self).__name__ + "_".join(astuple(self))
+
+    def __repr__(self):
+        return self.name
+
+    def __hash__(self):
+        hash(self.name)
 
     @abstractmethod
     def modify(self, sound: np.ndarray) -> np.ndarray:
@@ -22,50 +41,19 @@ class Aug(ABC):
         """
         pass
 
-    def apply2(_self, _r: Record) -> bool:
-        """
-        Rule for deteriming which records to apply this augmentation
-        Default implementation: apply to all records
-        """
-        return True
-
 
 Augs = Sequence[Aug]
 
-# TODO serparate balancing and augmentation
-# balancing should be handeld by dataset.py
-
 
 @dataclass
-class Balancer(Aug):
-    """
-    abstract class
-    """
-
-    seed: int
-    diag_prob: Dict
-    n: int
-
-    def __post_init__(self):
-        self.rng = np.random.default_rng(self.seed)
-
-    def apply2(self, r) -> bool:
-        try:
-            p = 1 / self.diag_prob[r.diag] / self.n
-            return self.rng.random() < p
-        except KeyError:
-            return True
-
-
-@dataclass
-class Noop(Balancer):
+class Noop(Aug):
     @staticmethod
     def modify(x):
         return x
 
 
 @dataclass
-class Trunc(Balancer):
+class Trunc(Aug):
     f_start: float = 0.0
     f_end: float = 1.0
 
@@ -76,7 +64,7 @@ class Trunc(Balancer):
 
 
 @dataclass
-class Pitch(Balancer):
+class Pitch(Aug):
     speed: float
 
     def modify(self, x):
@@ -85,34 +73,20 @@ class Pitch(Balancer):
         return np.interp(xq, xp, x)
 
 
+rng = np.random.default_rng(123)
+
+
 @dataclass
-class Noise(Balancer):
+class Noise(Aug):
     magnitude: float = 0.005
 
     def modify(self, x):
-        return x + self.magnitude * np.random.randn(*x.shape)
+        return x + self.magnitude * rng.standard_normal(x.shape)
 
 
-def mk_balanced_augs(recs: Sequence[Record]) -> Augs:
-    """
-    makes a set of augmentations that balances diagionis
-    """
-    diag_fractions = record_stats(recs)["major_fraction"]["diag"]
-    speeds = [x for x in np.linspace(0.7, 1.5, 10) if x != 1.0]
-    noise_levels = [0.002 * 1.1**n for n in range(1, 11)]  # TODO 3 noise levels
-    n_augs = len(speeds) + len(noise_levels) + 1
-
-    pitch_augs = [
-        Pitch(i, diag_fractions, n_augs, speed) for i, speed in enumerate(speeds)
-    ]
-
-    noise_augs = [
-        Noise(i + len(pitch_augs), diag_fractions, n_augs, magnitude)
-        for i, magnitude in enumerate(noise_levels)
-    ]
-
-    augs = [Noop(1337, diag_fractions, n_augs)] + pitch_augs + noise_augs
-    return augs
+pitch_augs = [Pitch(speed) for speed in np.linspace(0.7, 1.5, 5) if speed != 1.0]
+noise_augs = [Noise(mag) for mag in (0.002, 0.004, 0.006)]
+trunk_augs = [Trunc(f0, f1) for f1, f0 in ((0, 0.7), (0.3, 1))]
 
 
-DEFAULT_AUGS = [Noop(0, {}, 1)]
+DEFAULT_AUGS = pitch_augs + noise_augs + trunk_augs + [Noop()]

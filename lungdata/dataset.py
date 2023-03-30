@@ -1,6 +1,6 @@
 from __future__ import annotations
 from time import time
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, asdict
 from typing import List, Sequence, Iterator, Callable, Dict, Optional
 import pickle
 import toml
@@ -14,7 +14,8 @@ from sklearn.preprocessing import LabelEncoder
 # local
 from .features import SoundFeatures
 from .records import Record, record_stats
-from .augment import Aug, Augs, mk_balanced_augs
+from .augment import Aug, Augs, DEFAULT_AUGS
+from .utils import shallow_dict
 
 rng = np.random.default_rng(1337)
 
@@ -26,6 +27,15 @@ class DataPoint:
     aug: Aug
     features: SoundFeatures
 
+    def update(self, NewDataPoint=None, NewSoundFeatures=None) -> DataPoint:
+        if NewSoundFeatures:
+            self.features = NewSoundFeatures(**shallow_dict(self.features))
+
+        if NewDataPoint:
+            return NewDataPoint(**shallow_dict(self))
+
+        return self
+
     @classmethod
     def mk_augmented_points(cls, record: Record | str, augs: Augs) -> List[DataPoint]:
         """
@@ -36,9 +46,7 @@ class DataPoint:
         else:
             r = Record(record)
 
-        data = [
-            cls(r, aug, r.get_features(aug.modify)) for aug in augs if aug.apply2(r)
-        ]
+        data = [cls(r, aug, r.get_features(aug.modify)) for aug in augs]
 
         return data
 
@@ -105,6 +113,14 @@ class DataSet:
         self.data = np.array(data)
         self.encode()
 
+    def update(self, NewDataSet, NewDataPoint, NewSoundFeatures) -> DataSet:
+        if NewSoundFeatures:
+            self.data = [dp.update(NewDataPoint, NewSoundFeatures) for dp in self]
+
+        if NewDataSet:
+            return NewDataSet(self.data)
+        return self
+
     def __getitem__(self, s):
         if np.isscalar(s):
             return self.data[s]
@@ -148,6 +164,7 @@ class DataSet:
 
         for r in self.records:
             for key in data:
+                print(r)
                 data[key].append(getattr(r, key))
 
         for key, val in data.items():
@@ -305,7 +322,7 @@ class DataSet:
             recs = records[s]
 
         if augs is None:
-            augs = mk_balanced_augs(recs)
+            augs = DEFAULT_AUGS
 
         n_recs = len(recs)
         for r in recs:
