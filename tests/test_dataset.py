@@ -55,7 +55,13 @@ def test_map(dataset: DataSet):
         return a
 
     mdata = dataset.map(stats, axis=1, transpose=True)
+    oldtdim = dataset.max_tdim()
     assert mdata.max_tdim() == 3
+    assert oldtdim > 3, "pad should not mutate by default"
+    dataset.map(stats, axis=1, transpose=True, inplace=True)
+    assert (
+        mdata.features["mel"][0] == dataset.features["mel"][0]
+    ).all(), "map_inplace should have same effect except it is inplace"
 
 
 if __name__ == "__main__":
