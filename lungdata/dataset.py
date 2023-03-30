@@ -122,9 +122,11 @@ class DataSet:
         return self
 
     def __getitem__(self, s):
-        if np.isscalar(s):
-            return self.data[s]
-        return type(self)(self.data[s])
+        if type(s) == slice:
+            return type(self)(self.data[s])
+        if type(s) == list:
+            return type(self)([self[i] for i in s])
+        return self.data[s]
 
     def __len__(self) -> int:
         return len(self.data)
