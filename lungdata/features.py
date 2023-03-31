@@ -34,12 +34,13 @@ class SoundFeatures:
     @classmethod
     def from_sound(cls, sound, sr):
         stft = np.abs(librosa.stft(sound))
+        chroma = librosa.feature.chroma_stft(S=stft, sr=sr)
         kwargs = {
             "sr": sr,
             "mffcs": librosa.feature.mfcc(y=sound, sr=sr, n_mfcc=40),
-            "chroma": librosa.feature.chroma_stft(S=stft, sr=sr),
+            "chroma": chroma,
             "mel": librosa.feature.melspectrogram(y=sound, sr=sr),
-            "tonnetz": librosa.feature.tonnetz(y=sound, sr=sr),
+            "tonnetz": librosa.feature.tonnetz(y=sound, sr=sr, chroma=chroma),
         }
         return cls(**kwargs)
 
@@ -64,6 +65,9 @@ class SoundFeatures:
         else:
             returns new instance of Self
         """
+        if func is None:
+            return self
+
         new_data = {key: func(val, *args, **kwargs) for key, val in self.data.items()}
         if not inplace:
             return type(self)(sr=self.sr, **new_data)

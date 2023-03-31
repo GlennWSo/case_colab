@@ -51,7 +51,7 @@ def get_patient_data():
 
     patient_data = _mk_demo_data()
     diag_data = _mk_diag_data()
-    patient_data.insert(0, "diag", diag_data)
+    patient_data.insert(0, "diagnose", diag_data)
 
     return patient_data
 
@@ -59,8 +59,8 @@ def get_patient_data():
 PDATA = get_patient_data()
 
 rare_limit = 3
-all_diag_names = set(np.unique(PDATA["diag"]))
-p_diag_count = {name: (PDATA["diag"] == name).sum() for name in all_diag_names}
+all_diag_names = set(np.unique(PDATA["diagnose"]))
+p_diag_count = {name: (PDATA["diagnose"] == name).sum() for name in all_diag_names}
 rare_diags = {key for key, val in p_diag_count.items() if val <= rare_limit}
 diag_names = all_diag_names - rare_diags
 
@@ -84,7 +84,7 @@ class Record:
     pid: int = field(init=False)
     age: float = field(init=False)
     sex: str = field(init=False)
-    diag: str = field(init=False)
+    diagnose: str = field(init=False)
 
     rid: str = field(init=False)
     loc: str = field(init=False)
@@ -125,9 +125,9 @@ class Record:
         """
         deterimine if that maximum allowed recordings per patient has been reached
         """
-        diag = PDATA["diag"][pid]
+        diagnose = PDATA["diagnose"][pid]
         try:
-            limit = caps[diag]
+            limit = caps[diagnose]
         except KeyError:
             return False
 
@@ -159,9 +159,11 @@ class Record:
 
 
 def record_stats(recs: Sequence[Record]):
-    diag_names = set(r.diag for r in recs)
+    diag_names = set(r.diagnose for r in recs)
     counts = {
-        "diag": {name: sum(1 for r in recs if r.diag == name) for name in diag_names},
+        "diagnose": {
+            name: sum(1 for r in recs if r.diagnose == name) for name in diag_names
+        },
         "gender": {
             name: sum(1 for r in recs if r.sex == name) for name in {"F", "M", "NA"}
         },

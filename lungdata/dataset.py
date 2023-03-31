@@ -1,7 +1,7 @@
 from __future__ import annotations
 from time import time
-from dataclasses import dataclass, fields, asdict
-from typing import List, Sequence, Iterator, Callable, Dict, Optional
+from dataclasses import dataclass, fields
+from typing import List, Sequence, Iterator, Callable, Dict
 import pickle
 import toml
 from functools import cached_property, cache
@@ -38,7 +38,7 @@ class DataPoint:
 
     @classmethod
     def mk_augmented_points(
-        cls, record: Record | str, augs: Augs, map=lambda x: x, **kwargs
+        cls, record: Record | str, augs: Augs, map=None, **kwargs
     ) -> List[DataPoint]:
         """
         Create a sequance of points from single recording using augmentation
@@ -193,10 +193,10 @@ class DataSet:
     @property
     def labels(self) -> pd.DataFrame:
         """
-        diag, age, sex, loc, mode, equip
+        diagnose, age, sex, loc, mode, equip
         """
         data = {
-            "diag": [],
+            "diagnose": [],
             "age": [],
             "sex": [],
             "loc": [],
@@ -266,23 +266,23 @@ class DataSet:
 
     def under_sample(self, diag_size: int = 0, aug_filter=None) -> DataSet:
         """
-        filters the dataset in way that keeps datapoints with specified augmentations and balances the count of diags
+        filters the dataset in way that keeps datapoints with specified augmentations and balances the count of diagnoses
 
         if diag_size == 0:
             it will be set to the smalest diag class
         """
         if diag_size == 0:
-            diag_size = min(val for val in self.stats["counts"]["diag"].values())
+            diag_size = min(val for val in self.stats["counts"]["diagnose"].values())
 
         warning = """
-            warning: not enough data points of diag: {name}
+            warning: not enough data points of diagnose: {name}
                 {diag_size} samples requested for each diagnosis,
                 but dataset only has {n} of {name} (after aug_filter is applied)
         """
-        diag_names = set(self.labels["diag"])
+        diag_names = set(self.labels["diagnose"])
         sampled_dp: List[DataPoint] = []
         for name in diag_names:
-            sub_set = self.filter(lambda dp: dp.record.diag == name)
+            sub_set = self.filter(lambda dp: dp.record.diagnose == name)
             if aug_filter is not None:
                 sub_set = sub_set.filter(lambda dp: aug_filter(dp.aug))
             if len(sub_set) < diag_size:
@@ -295,7 +295,6 @@ class DataSet:
             for r in recs:
                 augsubset = sub_set.filter(lambda dp: dp.record == r)
                 n_consider += len(augsubset)
-                # n_picks/n_consider =aprox= diag_size/len(sub_set)
                 n_ideal = n_consider * diag_size / len(sub_set)
                 n = round(n_ideal - n_picks)
                 n_picks += n

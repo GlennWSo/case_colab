@@ -4,6 +4,8 @@ utils that denpend only on std
 from dataclasses import fields
 from typing import Dict
 
+import numpy as np
+
 
 def intNone(s):
     if s == "":
@@ -28,6 +30,13 @@ def str2slice(str_slice: str) -> slice:
         args = [intNone(s) for s in str_parts]
 
         return slice(*args)
+
+
+def meanstd(x, axis=1, transpose=True):
+    y = np.array([x.mean(axis), x.std(axis)])
+    if transpose:
+        return y.transpose()
+    return y
 
 
 def shallow_dict(obj) -> Dict:
