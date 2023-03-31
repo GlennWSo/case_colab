@@ -37,7 +37,9 @@ class DataPoint:
         return self
 
     @classmethod
-    def mk_augmented_points(cls, record: Record | str, augs: Augs) -> List[DataPoint]:
+    def mk_augmented_points(
+        cls, record: Record | str, augs: Augs, map=lambda x: x, **kwargs
+    ) -> List[DataPoint]:
         """
         Create a sequance of points from single recording using augmentation
         """
@@ -46,7 +48,7 @@ class DataPoint:
         else:
             r = Record(record)
 
-        data = [cls(r, aug, r.get_features(aug)) for aug in augs]
+        data = [cls(r, aug, r.get_features(aug).map(map, **kwargs)) for aug in augs]
 
         return data
 
@@ -113,7 +115,9 @@ class DataSet:
         self.data = np.array(data)
         self.encode()
 
-    def update(self, NewDataSet, NewDataPoint, NewSoundFeatures) -> DataSet:
+    def update(
+        self, NewDataSet=None, NewDataPoint=None, NewSoundFeatures=None
+    ) -> DataSet:
         if NewSoundFeatures:
             self.data = [dp.update(NewDataPoint, NewSoundFeatures) for dp in self]
 
@@ -142,6 +146,7 @@ class DataSet:
     def __hash__(self):
         return hash(tuple(self.data))
 
+    @property
     def feature_names(self):
         return tuple(self[0].features.data.keys())
 
@@ -353,7 +358,9 @@ class DataSet:
         return True
 
     @classmethod
-    def load_wavs(cls, records=None, augs=None, s=slice(0, -1)) -> DataSet:
+    def load_wavs(
+        cls, s=slice(0, -1), records=None, augs=None, map=None, **kwargs
+    ) -> DataSet:
         if records is None:
             records = Record.load_wavs()
 
@@ -373,7 +380,7 @@ class DataSet:
         data = []
         for i, r in enumerate(recs):
             t0 = time()
-            data.extend(DataPoint.mk_augmented_points(r, augs))
+            data.extend(DataPoint.mk_augmented_points(r, augs, map, **kwargs))
             dt = time() - t0
             dts.append(dt)
             avg_dt = sum(dts) / len(dts)
