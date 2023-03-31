@@ -46,7 +46,7 @@ class DataPoint:
         else:
             r = Record(record)
 
-        data = [cls(r, aug, r.get_features(aug.modify)) for aug in augs]
+        data = [cls(r, aug, r.get_features(aug)) for aug in augs]
 
         return data
 

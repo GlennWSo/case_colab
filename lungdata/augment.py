@@ -5,9 +5,7 @@ from dataclasses import dataclass, astuple
 
 # third
 import numpy as np
-
-# local
-from .records import Record, record_stats
+from audiomentations import Compose, AddGaussianNoise, TimeStretch, PitchShift, Shift
 
 
 class Aug(ABC):
@@ -24,18 +22,8 @@ class Aug(ABC):
     >>>        return y
     """
 
-    @property
-    def name(self) -> str:
-        return type(self).__name__ + "_".join(astuple(self))
-
-    def __repr__(self):
-        return self.name
-
-    def __hash__(self):
-        hash(self.name)
-
     @abstractmethod
-    def modify(self, sound: np.ndarray) -> np.ndarray:
+    def __call__(self, sound: np.ndarray, sr: int) -> np.ndarray:
         """
         Modifier to be applied to the sound
         """
@@ -45,10 +33,10 @@ class Aug(ABC):
 Augs = Sequence[Aug]
 
 
-@dataclass
+@dataclass()
 class Noop(Aug):
     @staticmethod
-    def modify(x):
+    def __call__(x, _sr):
         return x
 
 
@@ -57,7 +45,7 @@ class Trunc(Aug):
     f_start: float = 0.0
     f_end: float = 1.0
 
-    def modify(self, x):
+    def __call__(self, x, _sr):
         s0 = int(len(x) * self.f_start)
         s1 = int(len(x) * self.f_end)
         return x[s0:s1]
@@ -67,7 +55,7 @@ class Trunc(Aug):
 class Pitch(Aug):
     speed: float
 
-    def modify(self, x):
+    def __call__(self, x, _sr):
         xp = np.arange(len(x))
         xq = np.arange(0, len(x), self.speed)
         return np.interp(xq, xp, x)
@@ -80,7 +68,7 @@ rng = np.random.default_rng(123)
 class Noise(Aug):
     magnitude: float = 0.005
 
-    def modify(self, x):
+    def __call__(self, x, _sr):
         return x + self.magnitude * rng.standard_normal(x.shape)
 
 

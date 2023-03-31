@@ -117,7 +117,7 @@ class Record:
     def get_features(self, mod: Optional[Callable] = None) -> SoundFeatures:
         sound, sr = librosa.load(self.file)
         if mod is not None:
-            sound = mod(sound)
+            sound = mod(sound, sr)
         return SoundFeatures.from_sound(sound, sr)
 
     @staticmethod
