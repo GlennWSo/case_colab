@@ -65,7 +65,7 @@ rare_diags = {key for key, val in p_diag_count.items() if val <= rare_limit}
 diag_names = all_diag_names - rare_diags
 
 
-@dataclass
+@dataclass()
 class Record:
     """
     Contains all known meta/labels about records
@@ -94,7 +94,7 @@ class Record:
     annotations_file: str = field(init=False, repr=False)
 
     def __hash__(self) -> int:
-        return hash((self.pid, self.rid))
+        return hash(self.file)
 
     def __post_init__(self):
         """

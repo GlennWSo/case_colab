@@ -10,7 +10,7 @@ import numpy as np
 import librosa
 
 
-@dataclass
+@dataclass()
 class SoundFeatures:
     """
     # Data Description
@@ -50,6 +50,10 @@ class SoundFeatures:
     @property
     def values(self) -> np.ndarray:
         return tuple(self.data.values())
+
+    def __hash__(self):
+        vstr = "".join(str(self.values)) + str(self.sr)
+        return hash(vstr)
 
     def map(self, func: Callable, inplace=False, *args, **kwargs) -> SoundFeatures:
         """

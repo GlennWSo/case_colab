@@ -4,7 +4,7 @@ from dataclasses import dataclass, fields, asdict
 from typing import List, Sequence, Iterator, Callable, Dict, Optional
 import pickle
 import toml
-from functools import cached_property
+from functools import cached_property, cache
 
 # third
 import numpy as np
@@ -20,7 +20,7 @@ from .utils import shallow_dict
 rng = np.random.default_rng(1337)
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class DataPoint:
     # patient lookup
     record: Record
@@ -139,12 +139,47 @@ class DataSet:
             return False
         return all(p1 == p2 for p1, p2 in zip(self, o))
 
+    def __hash__(self):
+        return hash(tuple(self.data))
+
+    def feature_names(self):
+        return tuple(self[0].features.data.keys())
+
+    @cache
+    def get_features(self, feature_names: Sequence[str] = []):
+        """
+        concactinates data in features into a single array
+        shape: [n_datapoints, (time_dim)]
+        """
+        assert self.is_time_homo(), """
+        Datapoints must be homogeneous build arrays
+            hint: try use method pad or map to make homologous data
+        """
+        if type(feature_names) == str:
+            np.array([dp.features.data[feature_names] for dp in self])
+
+        if len(feature_names) == 0:
+            feature_names = self.feature_names
+        return np.array(
+            [
+                np.concatenate(
+                    [
+                        values
+                        for key, values in dp.features.data.items()
+                        if key in feature_names
+                    ]
+                )
+                for dp in self
+            ]
+        )
+
     @cached_property
     def features(self) -> np.ndarray:
-        return pd.DataFrame(
-            [dp.features.values for dp in self],
-            columns=[key for key in self[0].features.data.keys()],
-        )
+        """
+        get a concatenated array of all features.
+            tip: use get_features when a subset of all features is required
+        """
+        return self.get_features()
 
     @property
     def records(self) -> List[Record]:

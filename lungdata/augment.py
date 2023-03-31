@@ -39,6 +39,12 @@ class Noop(Aug):
     def __call__(x, _sr):
         return x
 
+    def __hash__(self):
+        """
+        use dataclass values and cls for hasing
+        """
+        return hash((type(self), astuple(self)))
+
 
 @dataclass
 class Trunc(Aug):
@@ -50,6 +56,12 @@ class Trunc(Aug):
         s1 = int(len(x) * self.f_end)
         return x[s0:s1]
 
+    def __hash__(self):
+        """
+        use dataclass values and cls for hasing
+        """
+        return hash((type(self), astuple(self)))
+
 
 @dataclass
 class Pitch(Aug):
@@ -59,6 +71,12 @@ class Pitch(Aug):
         xp = np.arange(len(x))
         xq = np.arange(0, len(x), self.speed)
         return np.interp(xq, xp, x)
+
+    def __hash__(self):
+        """
+        use dataclass values and cls for hasing
+        """
+        return hash((type(self), astuple(self)))
 
 
 rng = np.random.default_rng(123)
@@ -70,6 +88,12 @@ class Noise(Aug):
 
     def __call__(self, x, _sr):
         return x + self.magnitude * rng.standard_normal(x.shape)
+
+    def __hash__(self):
+        """
+        use dataclass values and cls for hasing
+        """
+        return hash((type(self), astuple(self)))
 
 
 pitch_augs = [Pitch(speed) for speed in np.linspace(0.7, 1.5, 5) if speed != 1.0]
