@@ -39,7 +39,7 @@ class SoundFeatures:
             "mffcs": librosa.feature.mfcc(y=sound, sr=sr, n_mfcc=40),
             "chroma": librosa.feature.chroma_stft(S=stft, sr=sr),
             "mel": librosa.feature.melspectrogram(y=sound, sr=sr),
-            "tonnetz": librosa.feature.melspectrogram(y=sound, sr=sr),
+            "tonnetz": librosa.feature.tonnetz(y=sound, sr=sr),
         }
         return cls(**kwargs)
 
