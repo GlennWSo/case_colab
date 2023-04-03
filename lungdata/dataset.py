@@ -457,7 +457,9 @@ class DataSet:
 
     @property
     def stats(self) -> Dict:
-        return record_stats(self.records)
+        stats = record_stats(self.records)
+        stats["augmentations"] = self.aug_count(sum=True)
+        return stats
 
     @property
     def pretty_stats(self) -> str:
@@ -488,7 +490,7 @@ len: {len(self)}
     def save_pickle(self, path: str):
         print(f"saving data at {path}")
         with open(path, mode="wb") as file:
-            pickle.data.dump(self, file)
+            pickle.dump(self.data, file)
 
     @classmethod
     def load_pickle(cls, path) -> DataSet:
