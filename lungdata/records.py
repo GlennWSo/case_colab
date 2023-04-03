@@ -114,12 +114,6 @@ class Record:
         for key, value in data.items():
             setattr(self, key, value)
 
-    def get_features(self, mod: Optional[Callable] = None) -> SoundFeatures:
-        sound, sr = librosa.load(self.file)
-        if mod is not None:
-            sound = mod(sound, sr)
-        return SoundFeatures.from_sound(sound, sr)
-
     @staticmethod
     def limit_patient(pid: int, recs: Sequence[Record], caps: Dict) -> bool:
         """

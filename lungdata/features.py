@@ -1,13 +1,15 @@
 # std
 from __future__ import annotations
 from dataclasses import dataclass, asdict
-from typing import Tuple, Callable, Dict
+from typing import Tuple, Callable, Dict, List
 
 # third
 import numpy as np
-
-# import soundfile as sf
 import librosa
+
+
+# local
+from .augment import Augs
 
 
 @dataclass()
@@ -32,17 +34,20 @@ class SoundFeatures:
         return NewSoundFeatures(asdict(self))
 
     @classmethod
-    def from_sound(cls, sound, sr):
+    def from_sound(cls, sound, sr, map=None, **kwargs):
         stft = np.abs(librosa.stft(sound))
         chroma = librosa.feature.chroma_stft(S=stft, sr=sr)
-        kwargs = {
+        data = {
             "sr": sr,
             "mffcs": librosa.feature.mfcc(y=sound, sr=sr, n_mfcc=40),
             "chroma": chroma,
             "mel": librosa.feature.melspectrogram(y=sound, sr=sr),
             "tonnetz": librosa.feature.tonnetz(y=sound, sr=sr, chroma=chroma),
         }
-        return cls(**kwargs)
+        self = cls(**data)
+        if map:
+            self.map(map, inplace=True, **kwargs)
+        return self
 
     @property
     def data(self) -> Dict:

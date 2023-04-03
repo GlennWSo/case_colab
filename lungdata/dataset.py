@@ -1,7 +1,7 @@
 from __future__ import annotations
 from time import time
 from dataclasses import dataclass, fields
-from typing import List, Sequence, Iterator, Callable, Dict
+from typing import List, Sequence, Iterator, Callable, Dict, Tuple
 import pickle
 import toml
 from functools import cached_property, cache
@@ -10,6 +10,7 @@ from functools import cached_property, cache
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
+import librosa
 
 # local
 from .features import SoundFeatures
@@ -35,22 +36,6 @@ class DataPoint:
             return NewDataPoint(**shallow_dict(self))
 
         return self
-
-    @classmethod
-    def mk_augmented_points(
-        cls, record: Record | str, augs: Augs, map=None, **kwargs
-    ) -> List[DataPoint]:
-        """
-        Create a sequance of points from single recording using augmentation
-        """
-        if isinstance(record, Record):
-            r = record
-        else:
-            r = Record(record)
-
-        data = [cls(r, aug, r.get_features(aug).map(map, **kwargs)) for aug in augs]
-
-        return data
 
     def map(self, func, *args, inplace=False, **kwargs) -> DataPoint:
         """
@@ -105,9 +90,37 @@ class DummyEncoder(LabelEncoder):
     def inverse_transform(self, y):
         return y
 
+    # augment frist without balancing.. Just increase the total n datapoints
+    # then let the students balnace and pick the augmentations from prepared data
 
-# augment frist without balancing.. Just increase the total n datapoints
-# then let the students balnace and pick the augmentations from prepared data
+
+def augment_sound(
+    file: str, augs: Augs, map, **kwargs
+) -> Dict[SoundFeatures, List[Aug]]:
+    sound, sr = librosa.load(file)
+    aug_sounds = augs.apply(sound, sr)
+    return {
+        aug: [SoundFeatures.from_sound(sound, sr, map, **kwargs) for sound in sounds]
+        for aug, sounds in aug_sounds.items()
+    }
+
+
+def mk_augmented_points(
+    r: Record | str, augs: Augs, map=None, **kwargs
+) -> List[DataPoint]:
+    """
+    Create a sequance of points from single recording using augmentation
+    """
+    if isinstance(r, str):
+        r = Record(r)
+
+    aug_features = augment_sound(r.file, augs, map, **kwargs)
+
+    data = []
+    for aug, feature_list in aug_features.items():
+        data.extend(DataPoint(r, aug, sf) for sf in feature_list)
+
+    return data
 
 
 class DataSet:
@@ -145,6 +158,56 @@ class DataSet:
 
     def __hash__(self):
         return hash(tuple(self.data))
+
+    @cached_property
+    def aug_dict(self) -> Dict[str, Aug]:
+        """
+        all aug types used in this dataset
+        """
+        augs = set(dp.aug for dp in self)
+        return {aug.name: aug for aug in augs}
+
+    @cached_property
+    def unique_records(self) -> Tuple[Record]:
+        return tuple(set(dp.record for dp in self))
+
+    def aug_count(self, sum=False):
+        """
+        if sum:
+            return total use of each aug
+        else:
+            use per record
+        """
+        count = {
+            key: len(self.filter(lambda dp: dp.aug == aug))
+            for key, aug in self.aug_dict.items()
+        }
+        if sum:
+            return count
+        for key in count:
+            count[key] //= len(self.unique_records)
+        return count
+
+    def limit_augs(self, aug_limits: Dict[str, int]) -> DataSet:
+        """
+        filter self to limit the number uses for each augmentation on each record
+        augs not mentationed will in caps will be unlimted
+        """
+        sub = self.filter(lambda dp: dp.aug.name not in set(aug_limits))
+
+        limited_sub = self.filter(lambda dp: dp.aug.name in set(aug_limits))
+        records = set(dp.record for dp in self)
+        dps = []
+        for r in records:
+            r_data = limited_sub.filter(lambda dp: dp.record == r)
+            caps = aug_limits.copy()
+            for dp in r_data:
+                if caps[dp.aug.name] > 0:
+                    caps[dp.aug.name] -= 1
+                    dps.append(dp)
+
+        new_data = np.hstack((sub, np.array(dps)))
+        return type(self)(new_data)
 
     @property
     def feature_names(self):
@@ -379,7 +442,7 @@ class DataSet:
         data = []
         for i, r in enumerate(recs):
             t0 = time()
-            data.extend(DataPoint.mk_augmented_points(r, augs, map, **kwargs))
+            data.extend(mk_augmented_points(r, augs, map, **kwargs))
             dt = time() - t0
             dts.append(dt)
             avg_dt = sum(dts) / len(dts)
