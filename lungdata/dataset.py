@@ -116,7 +116,7 @@ def mk_augmented_points(
 
 class DataSet:
     def __init__(self, data: Sequence[DataPoint]):
-        self.data: np.ndarray = np.array(data)
+        self.data = data
         self.encode()
 
     def __getitem__(self, s):
@@ -471,7 +471,7 @@ len: {len(self)}
     def save_pickle(self, path: str):
         print(f"saving data at {path}")
         with open(path, mode="wb") as file:
-            pickle.dump(self.data.tolist(), file)
+            pickle.dump(self.data, file)
 
     def dumps(self) -> str:
         """
