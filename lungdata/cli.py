@@ -20,6 +20,4 @@ def make_dataset():
 
 
 if __name__ == "__main__":
-    make_dataset()
-    data = DataSet.load_pickle("test.data")
-    print(data)
+    data = make_dataset()

@@ -26,6 +26,7 @@ setup(
         "pandas",
         "soundfile",
         "toml",
+        "audiomentations",
     ],
     entry_points={
         "console_scripts": ["pickle_db=lungdata.cli:make_dataset"],
