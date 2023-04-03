@@ -28,15 +28,6 @@ class DataPoint:
     aug: Aug
     features: SoundFeatures
 
-    def update(self, NewDataPoint=None, NewSoundFeatures=None) -> DataPoint:
-        if NewSoundFeatures:
-            self.features = NewSoundFeatures(**shallow_dict(self.features))
-
-        if NewDataPoint:
-            return NewDataPoint(**shallow_dict(self))
-
-        return self
-
     def map(self, func, *args, inplace=False, **kwargs) -> DataPoint:
         """
         Create a new data by mapping data in self using func and *arg, **kwargs
@@ -125,18 +116,8 @@ def mk_augmented_points(
 
 class DataSet:
     def __init__(self, data: Sequence[DataPoint]):
-        self.data = np.array(data)
+        self.data: np.ndarray = np.array(data)
         self.encode()
-
-    def update(
-        self, NewDataSet=None, NewDataPoint=None, NewSoundFeatures=None
-    ) -> DataSet:
-        if NewSoundFeatures:
-            self.data = [dp.update(NewDataPoint, NewSoundFeatures) for dp in self]
-
-        if NewDataSet:
-            return NewDataSet(self.data)
-        return self
 
     def __getitem__(self, s):
         if type(s) == slice:
@@ -490,7 +471,20 @@ len: {len(self)}
     def save_pickle(self, path: str):
         print(f"saving data at {path}")
         with open(path, mode="wb") as file:
-            pickle.dump(self.data, file)
+            pickle.dump(self.data.tolist(), file)
+
+    def dumps(self) -> str:
+        """
+        stringy pickle
+        """
+        return pickle.dumps(self.data.tolist())
+
+    @classmethod
+    def loads(cls, dumps: str):
+        """
+        load cls from stringy pickle
+        """
+        return cls(pickle.loads(dumps))
 
     @classmethod
     def load_pickle(cls, path) -> DataSet:
