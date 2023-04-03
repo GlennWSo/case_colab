@@ -488,10 +488,10 @@ len: {len(self)}
     def save_pickle(self, path: str):
         print(f"saving data at {path}")
         with open(path, mode="wb") as file:
-            pickle.dump(self, file)
+            pickle.data.dump(self, file)
 
     @classmethod
     def load_pickle(cls, path) -> DataSet:
         with open(path, mode="rb") as file:
-            instance = pickle.load(file)
-        return instance
+            data = pickle.load(file)
+        return cls(data)
